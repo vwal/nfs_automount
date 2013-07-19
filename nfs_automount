@@ -339,7 +339,7 @@ log "[INFO] Monitoring started." force
 
 while : ; do
 
-  if ! ${LOG} ; then
+  if ! ${DEBUGLOG} ; then
     log "[INFO] Checking shares. Debug logging disabled." force 
   fi
 
