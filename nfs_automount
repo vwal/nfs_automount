@@ -182,7 +182,8 @@ function check_remotenfs {
     exit 1
   fi
 
-  if ${rpcinfocmd} -t ${_remotesystem} nfs > /dev/null 2>&1 ; then
+  read -t1 < <(${rpcinfocmd} -t ${_remotesystem} nfs)
+  if [ $? -eq 0 ]; then
     _RET=true
   else
     _RET=false
