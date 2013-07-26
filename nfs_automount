@@ -22,26 +22,42 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+# Absolute path to the configuration file 
+# (if empty or not defined, the default is
+# 'nfs_automount.conf' in the script's directory)
+CONFIG_FILE=/etc/nfs_automount.conf
+
+###############################################################################
+
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/sbin:/usr/sbin:/usr/bin:/root/bin
 export PATH
 
+# -- DATESTAMP AT RUNTIME --
+
 DATESTAMP=`date --rfc-3339=seconds`
+
 
 # -- IMPORT CONFIGURATION --
 
-CONFIG=/etc/nfs_automount.conf
+if [ -z ${CONFIG_FILE} ] ; then
+  SCRIPT_PATH="`dirname \"$0\"`"
+  SCRIPT_PATH="`( cd \"$SCRIPT_PATH\" && pwd )`"
+  CONFIG=${SCRIPT_PATH}/nfs_automount.conf
+else
+  CONFIG=${CONFIG_FILE}
+fi
 
 if [ -f ${CONFIG} ] ; then
   source ${CONFIG}
 else
-  echo "nfs_automount [${DATESTAMP}]: [ALERT] Configuration file (${CONFIG}) missing; cannot continue!"
+  echo "nfs_automount [${DATESTAMP}]: [CRIT] Configuration file (${CONFIG}) missing; cannot continue!"
   exit 1
 fi
 
 counter=0
 declare -a MOUNTDATA
 for MOUNT in ${MOUNTS[@]}; do
-  MOUNTDATA[$((counter++))]=$MOUNT
+  MOUNTDATA[((counter++))]=${MOUNT}
 done
 
 
@@ -52,17 +68,18 @@ function log {
   if [ ! -z "$1" ] ; then 
     log_msg="$1"
   else
-    log "nfs_automount [${DATESTAMP}]: [WARN] Parameter missing (log)!"
+    log_msg="[WARN] Parameter missing (log)!"
   fi
 
-  if [ -z "$2" ] ; then 
-    force=false
+  TAG=${log_msg:0:6}
+
+  if [ ${TAG} = "[CRIT]" ] || [ ${TAG} = "[NOTE]" ] ; then 
+    critical=true
   else
-    force=true
+    critical=false
   fi
 
-  if [ "${DEBUGLOG}" = "true" ] || [ "${force}" = "true" ] ; then
-    
+  if [ "${DEBUGLOG}" = "true" ] || [ "${critical}" = "true" ] ; then
     message=`echo "nfs_automount [${DATESTAMP}]: ${log_msg}"`
     
     if [ "${LOGTYPE}" = "log" ] ; then
@@ -70,7 +87,11 @@ function log {
     else
       echo ${message}
     fi
-    
+  fi
+  
+  if [ ${TAG} = "[CRIT]" ] ; then
+    logger_msg=`echo "nfs_automount: ${log_msg}"`
+    logger ${logger_msg}
   fi
 }
 
@@ -80,9 +101,9 @@ function log {
 function check_command {
   CMD=`which $1` > /dev/null 2>&1
   if [ $? -ne 0 ] ; then
-     log "[ALERT] Command $1 not found. Cannot continue." force
+     log "[CRIT] Command $1 not found. Cannot continue."
      if [ "$1" = "showmount" ] ; then
-       log "[INFO] Install nfs-common (Debian/Ubuntu), or nfs-utils (RedHat/CentOS) first!" force
+       log "[INFO] Install nfs-common (Debian/Ubuntu), or nfs-utils (RedHat/CentOS) first!"
      fi
      exit 1
   fi
@@ -107,11 +128,15 @@ function get_mount_dataset {
   if [ ! -z "$1" ] ; then 
     _mountdataset="$1"
   else
-    log "[ALERT] Parameter missing (get_mount_dataset); process aborted!" force
+    log "[CRIT] Parameter missing (get_mount_dataset); process aborted!"
     exit 1
   fi
-
-  _RET=(`echo ${_mountdataset//$DELIMETER/ }`)
+  
+  if [ -z ${DELIMITER} ] ; then
+    DELIMITER="|"
+  fi
+  
+  _RET=(`echo ${_mountdataset//$DELIMITER/ }`)
   if [ ! -z ${_RET[4]} ] ; then
     _RET[4]=${_RET[3]}/${_RET[4]}
   fi
@@ -130,7 +155,7 @@ function check_mounted {
   if [ ! -z "$1" ] ; then
     _localmountpoint="$1" 
   else
-    log "[ALERT] Parameter missing (check_mounted); process aborted!" force
+    log "[CRIT] Parameter missing (check_mounted); process aborted!"
     exit 1
   fi
 
@@ -145,7 +170,7 @@ function check_stale {
   if [ ! -z "$1" ] ; then 
     _localmountpoint="$1"
   else
-    log "[ALERT] Parameter missing (check_stale); process aborted!" force
+    log "[CRIT] Parameter missing (check_stale); process aborted!"
     exit 1
   fi
 
@@ -178,7 +203,7 @@ function check_remotenfs {
   if [ ! -z "$1" ] ; then 
     _remotesystem="$1"
   else
-    log "[ALERT] Parameter missing (check_remotenfs); process aborted!" force
+    log "[CRIT] Parameter missing (check_remotenfs); process aborted!"
     exit 1
   fi
 
@@ -195,7 +220,7 @@ function check_remoteshare {
     _remotesystem="$1"
     _remoteshare="$2"
   else
-    log "[ALERT] Parameter(s) missing (check_remoteshare); process aborted!" force
+    log "[CRIT] Parameter(s) missing (check_remoteshare); process aborted!"
     exit 1
   fi
 
@@ -211,7 +236,7 @@ function valid_for_mount {
   if [ ! -z "$1" ] ; then 
     _localmountpoint="$1"
   else
-    log "[ALERT] Parameter missing (valid_for_mount); process aborted!" force
+    log "[CRIT] Parameter missing (valid_for_mount); process aborted!"
     exit 1
   fi
 
@@ -230,7 +255,7 @@ function test_rw {
   if [ ! -z "$1" ] ; then 
     _rw_testfile="$1"
   else
-    log "[ALERT] Parameter missing (test_rw); process aborted!" force
+    log "[CRIT] Parameter missing (test_rw); process aborted!"
     exit 1
   fi
 
@@ -247,7 +272,7 @@ function nfs_umount {
   if [ ! -z "$1" ] ; then 
     _localmountpoint="$1"
   else
-    log "[ALERT] Parameter missing (nfs_umount); process aborted!" force
+    log "[CRIT] Parameter missing (nfs_umount); process aborted!"
     exit 1
   fi
 
@@ -275,7 +300,7 @@ function nfs_mount {
     _remoteshare="$3"
     _localmountpoint="$4"
   else
-    log "[ALERT] Parameter(s) missing (nfs_mount); process aborted!" force
+    log "[CRIT] Parameter(s) missing (nfs_mount); process aborted!"
     exit 1
   fi
 
@@ -294,21 +319,21 @@ function nfs_mount {
         log "[INFO] Attempting mount: ${mountcmd} ${_mountopts} ${_remotesystem}:${_remoteshare} ${_localmountpoint}"
         ${mountcmd} ${_mountopts} ${_remotesystem}:${_remoteshare} ${_localmountpoint}
         if [ $? -ne 0 ] ; then
-          log "[ALERT] Unable to mount share '${_remoteshare}'!" force
+          log "[CRIT] Unable to mount share '${_remoteshare}'!"
         else
           log "[INFO] Share '${_remoteshare}' mounted from '${_remotesystem}' at '${_localmountpoint}'."
         fi
 
       else
-        log "[ALERT] Local mount point '${_localmountpoint}' missing or already in use!" force
+        log "[CRIT] Local mount point '${_localmountpoint}' missing or already in use!"
       fi
     
     else
-      log "[ALERT] Remote share '${_remoteshare}' unavailable!" force
+      log "[CRIT] Remote share '${_remoteshare}' unavailable!"
     fi
   
   else
-    log "[ALERT] Remote NFS service unavailable at '${_remotesystem}'!" force
+    log "[CRIT] Remote NFS service unavailable at '${_remotesystem}'!"
   fi
 }
 
@@ -319,7 +344,7 @@ function nfs_remount {
     _remoteshare="$3"
     _localmountpoint="$4"
   else
-    log "[ALERT] Parameter(s) missing (nfs_remount); process aborted!" force
+    log "[CRIT] Parameter(s) missing (nfs_remount); process aborted!"
     exit 1
   fi
 
@@ -328,25 +353,32 @@ function nfs_remount {
     log "[INFO] Unmounted '${_localmountpoint}'. Proceeding with remount."
     nfs_mount "${_mountopts}" "${_remotesystem}" "${_remoteshare}" "${_localmountpoint}"
   else
-    log "[ALERT] Could not unmount '${_localmountpoint}'. Cannot proceed with remount!" force
+    log "[CRIT] Could not unmount '${_localmountpoint}'. Cannot proceed with remount!"
   fi
 }
 
 
 # -- LOGIC --
 
-log "[INFO] Monitoring started." force
+log "[NOTE] Monitoring started."
 
 while : ; do
 
   if ! ${DEBUGLOG} ; then
-    log "[INFO] Checking shares. Debug logging disabled." force 
+    log "[INFO] Checking shares. Debug logging disabled." 
   fi
 
   mounts=${#MOUNTDATA[@]}
   for (( i=0; i<${mounts}; i++)); do
 
     get_mount_dataset ${MOUNTDATA[$i]}
+
+	((dataset=${i} + 1))
+
+    if [ ${#_RET[@]} -lt 5 ] ; then
+      log "[CRIT] Incomplete mount dataset ${dataset} in '${CONFIG}'. Skipping!"
+      continue
+    fi
 
     NFSMOUNTOPTS=${_RET[0]}
     REMOTESYSTEM=${_RET[1]}
@@ -357,22 +389,22 @@ while : ; do
 
     check_remotenfs ${REMOTESYSTEM}
     if ${_RET} ; then
-      log "[INFO] Remote server/NFS service at '${REMOTESYSTEM}' available."
+      log "[INFO] (dataset ${dataset}) Remote server/NFS service at '${REMOTESYSTEM}' available."
 
       check_mounted ${LOCALMOUNTPOINT}
       if ${_RET} ; then
-        log "[INFO] Local mount point '${LOCALMOUNTPOINT}' active."
+        log "[INFO] (dataset ${dataset}) Local mount point '${LOCALMOUNTPOINT}' active."
 
         check_stale ${LOCALMOUNTPOINT}
         if ! ${_RET} ; then
-          log "[INFO] Local mount point '${LOCALMOUNTPOINT}' not stale."
+          log "[INFO] (dataset ${dataset}) Local mount point '${LOCALMOUNTPOINT}' not stale."
 
           if [ ! -z ${REMOTECHECKFILE} ] ; then
             test_remotecheckfile ${REMOTECHECKFILE}
             if ${_RET} ; then
-              log "[INFO] Remote test file '${REMOTECHECKFILE}' is reachable via local the mount point '${LOCALMOUNTPOINT}'."
+              log "[INFO] (dataset ${dataset}) Remote test file '${REMOTECHECKFILE}' is reachable via local the mount point '${LOCALMOUNTPOINT}'."
             else
-              log "[ALERT] Remote test file '${REMOTECHECKFILE}' could not be reached via the mount point '${LOCALMOUNTPOINT}'. This may indicate a remote system problem!" force
+              log "[CRIT] (dataset ${dataset}) Remote test file '${REMOTECHECKFILE}' could not be reached via the mount point '${LOCALMOUNTPOINT}'. This may indicate a remote system problem!"
             fi
           fi
 
@@ -380,18 +412,18 @@ while : ; do
           TESTFILE="${LOCALMOUNTPOINT}"/"${RW_TESTFILE}"
           test_rw ${TESTFILE}
           if ${_RET} ; then
-            log "[INFO] Mount point '${LOCALMOUNTPOINT}' is writable."
+            log "[INFO] (dataset ${dataset}) Mount point '${LOCALMOUNTPOINT}' is writable."
             
             if [ "${READWRITE}" = "ro" ]; then
-              log "[INFO] Read Only mount has been specified. Attempting remount." 
+              log "[INFO] (dataset ${dataset}) Read Only mount has been specified. Attempting remount." 
               nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
             fi
 
           else
-            log "[INFO] Mount point '${LOCALMOUNTPOINT}' is not writable."
+            log "[INFO] (dataset ${dataset}) Mount point '${LOCALMOUNTPOINT}' is not writable."
             
             if [ "${READWRITE}" = "rw" ]; then
-              log "[INFO] Read/Write mount has been specified. Attempting remount." 
+              log "[INFO] (dataset ${dataset}) Read/Write mount has been specified. Attempting remount." 
               nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
             fi
 
@@ -399,7 +431,7 @@ while : ; do
   
         else
           #STALE PROCESSING
-          log "[ALERT] Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is stale; attempting remount." force
+          log "[CRIT] (dataset ${dataset}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is stale; attempting remount."
           
           nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
     
@@ -408,7 +440,7 @@ while : ; do
       else
 
         #UNMOUNTED PROCESSING
-        log "[ALERT] Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is unmounted; attempting mount." force
+        log "[CRIT] (dataset ${dataset}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is unmounted; attempting mount."
 
         nfs_mount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
   
@@ -416,13 +448,13 @@ while : ; do
     
     else
       #UNREACHABLE SERVER/NFS SERVICE PROCESSING
-      log "[ALERT] Remote server/NFS service at '${REMOTESYSTEM}' unreachable; confirming unmounted status of share '$REMOTESHARE'." force
+      log "[CRIT] (dataset ${dataset}) Remote server/NFS service at '${REMOTESYSTEM}' unreachable; confirming unmounted status of share '$REMOTESHARE'."
       
       nfs_umount "${LOCALMOUNTPOINT}"
       if ${_RET} ; then
-        log "[INFO] Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
+        log "[INFO] (dataset ${dataset}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
       else
-        log "[ALERT] Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!" force
+        log "[CRIT] (dataset ${dataset}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!"
       fi
   
     fi
@@ -432,7 +464,7 @@ while : ; do
   # Break here for cron style run
   [[ "${RUNTYPE}" = "service" ]] || break
   
-  log "[INFO] Sleeping for ${INTERVAL} seconds."
+  log "[INFO] (dataset ${dataset}) Sleeping for ${INTERVAL} seconds."
   sleep $INTERVAL
 
 done
