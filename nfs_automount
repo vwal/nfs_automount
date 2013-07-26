@@ -464,7 +464,7 @@ while : ; do
   # Break here for cron style run
   [[ "${RUNTYPE}" = "service" ]] || break
   
-  log "[INFO] (dataset ${dataset}) Sleeping for ${INTERVAL} seconds."
+  log "[INFO] Sleeping for ${INTERVAL} seconds."
   sleep $INTERVAL
 
 done
