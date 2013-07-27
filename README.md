@@ -1,7 +1,7 @@
 nfs_automount 
 =============
 
-Version 1.0 (2013-07-18)
+Version 1.1 (2013-07-26)
 
 The goal of this script is to provide static (i.e. /etc/fstab-like) NFS mounts, while at the same time supporting cross-mounts between servers.  
 
@@ -78,3 +78,24 @@ Start the service with `start nfs_automount`.  Note that the log will be written
 
 Also note that whenever you modify the configuration file at /etc/nfs_automount.conf, you'll need to issue `service nfs_automount restart` in order for the changes to become effective.
 
+
+Version History
+---------------
+
+2013-07-26 - version 1.1, bumped the version number to indicate numerous minor improvements, semantic changes, and a few bug fixes
+
+2013-07-18 - version 1.0, initial code commit
+
+
+License
+-------
+
+Copyright (c) 2013 Ville Walveranta
+
+[http://my.galagzee.com](http://my.galagzee.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: 
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

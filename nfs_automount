@@ -63,9 +63,16 @@ function log {
 
   if [ "${DEBUGLOG}" = "true" ] || [ "${critical}" = "true" ] ; then
     message=`echo "nfs_automount [${DATESTAMP}]: ${log_msg}"`
-    
-    if [ "${LOGTYPE}" = "log" ] ; then
-      echo ${message} >> ${LOGFILEPATH}
+
+    if [ "${LOGTYPE}" = "log" ] && [ ! -z ${LOGFILEPATH} ]; then
+      if [ ! -f ${LOGFILEPATH} ] ; then
+      	 ${touchcmd} ${LOGFILEPATH} > /dev/null 2>&1
+         if [ -f ${LOGFILEPATH} ] ; then
+           echo ${message} >> ${LOGFILEPATH}
+         else
+           echo ${message}
+         fi
+      fi
     else
       echo ${message}
     fi
@@ -237,13 +244,12 @@ function test_rw {
   if [ ! -z "$1" ] ; then 
     _rw_testfile="$1"
   else
-    log "[CRIT] Parameter missing (test_rw); process aborted!"
-    exit 1
+    _rw_testfile="nfs_automount_rw_test.Kk6MC2CkHoinbSE3CYqv"
   fi
 
   ${touchcmd} ${_rw_testfile} > /dev/null 2>&1
   if [ -f ${_rw_testfile} ] ; then
-    ${rmcmd} ${_rw_testfile}
+    ${rmcmd} -f ${_rw_testfile}
     _RET=true
   else
     _RET=false
@@ -350,15 +356,20 @@ while : ; do
     log "[INFO] Checking shares. Debug logging disabled." 
   fi
 
-  mounts=${#MOUNTDATA[@]}
-  for (( i=0; i<${mounts}; i++)); do
+  mountscnt=${#MOUNTDATA[@]}
+  for (( i=0; i<${mountscnt}; i++)); do
 
     get_mount_dataset ${MOUNTDATA[$i]}
 
-	((dataset=${i} + 1))
+	((datasetno=${i} + 1))
 
     if [ ${#_RET[@]} -lt 5 ] ; then
-      log "[CRIT] Incomplete mount dataset ${dataset} in '${CONFIG}'. Skipping!"
+      log "[CRIT] Incomplete mount dataset ${datasetno} in '${CONFIG}'. Skipping!"
+
+      if [ ${#_RET[@]} -eq 1 ] ; then
+        log "[NOTE] Only one parameter in dataset ${datasetno} in '${CONFIG}'. Bad delimiter ('${DELIMITER}')?"
+      fi
+
       continue
     fi
 
@@ -371,41 +382,43 @@ while : ; do
 
     check_remotenfs ${REMOTESYSTEM}
     if ${_RET} ; then
-      log "[INFO] (dataset ${dataset}) Remote server/NFS service at '${REMOTESYSTEM}' available."
+      log "[INFO] (dataset ${datasetno}) Remote server/NFS service at '${REMOTESYSTEM}' available."
 
       check_mounted ${LOCALMOUNTPOINT}
       if ${_RET} ; then
-        log "[INFO] (dataset ${dataset}) Local mount point '${LOCALMOUNTPOINT}' active."
+        log "[INFO] (dataset ${datasetno}) Local mount point '${LOCALMOUNTPOINT}' active."
 
         check_stale ${LOCALMOUNTPOINT}
         if ! ${_RET} ; then
-          log "[INFO] (dataset ${dataset}) Local mount point '${LOCALMOUNTPOINT}' not stale."
+          log "[INFO] (dataset ${datasetno}) Local mount point '${LOCALMOUNTPOINT}' not stale."
 
           if [ ! -z ${REMOTECHECKFILE} ] ; then
             test_remotecheckfile ${REMOTECHECKFILE}
             if ${_RET} ; then
-              log "[INFO] (dataset ${dataset}) Remote test file '${REMOTECHECKFILE}' is reachable via local the mount point '${LOCALMOUNTPOINT}'."
+              log "[INFO] (dataset ${datasetno}) Remote test file '${REMOTECHECKFILE}' is reachable via local the mount point '${LOCALMOUNTPOINT}'."
             else
-              log "[CRIT] (dataset ${dataset}) Remote test file '${REMOTECHECKFILE}' could not be reached via the mount point '${LOCALMOUNTPOINT}'. This may indicate a remote system problem!"
+              log "[CRIT] (dataset ${datasetno}) Remote test file '${REMOTECHECKFILE}' could not be reached via the mount point '${LOCALMOUNTPOINT}'. This may indicate a remote system problem!"
             fi
+          else
+            log "[NOTE] (dataset ${datasetno}) Remote test file not defined. Skipping remote test file check for this dataset."
           fi
 
           # RO/RW PROCESSING  
           TESTFILE="${LOCALMOUNTPOINT}"/"${RW_TESTFILE}"
           test_rw ${TESTFILE}
           if ${_RET} ; then
-            log "[INFO] (dataset ${dataset}) Mount point '${LOCALMOUNTPOINT}' is writable."
+            log "[INFO] (dataset ${datasetno}) Mount point '${LOCALMOUNTPOINT}' is writable."
             
             if [ "${READWRITE}" = "ro" ]; then
-              log "[INFO] (dataset ${dataset}) Read Only mount has been specified. Attempting remount." 
+              log "[INFO] (dataset ${datasetno}) Read Only mount has been specified. Attempting remount." 
               nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
             fi
 
           else
-            log "[INFO] (dataset ${dataset}) Mount point '${LOCALMOUNTPOINT}' is not writable."
+            log "[INFO] (dataset ${datasetno}) Mount point '${LOCALMOUNTPOINT}' is not writable."
             
             if [ "${READWRITE}" = "rw" ]; then
-              log "[INFO] (dataset ${dataset}) Read/Write mount has been specified. Attempting remount." 
+              log "[INFO] (dataset ${datasetno}) Read/Write mount has been specified. Attempting remount." 
               nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
             fi
 
@@ -413,7 +426,7 @@ while : ; do
   
         else
           #STALE PROCESSING
-          log "[CRIT] (dataset ${dataset}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is stale; attempting remount."
+          log "[CRIT] (dataset ${datasetno}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is stale; attempting remount."
           
           nfs_remount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
     
@@ -422,7 +435,7 @@ while : ; do
       else
 
         #UNMOUNTED PROCESSING
-        log "[CRIT] (dataset ${dataset}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is unmounted; attempting mount."
+        log "[CRIT] (dataset ${datasetno}) Remote NFS share '${REMOTESYSTEM}:${REMOTESHARE}' is unmounted; attempting mount."
 
         nfs_mount "${NFSMOUNTOPTS}" "${REMOTESYSTEM}" "${REMOTESHARE}" "${LOCALMOUNTPOINT}"
   
@@ -430,13 +443,13 @@ while : ; do
     
     else
       #UNREACHABLE SERVER/NFS SERVICE PROCESSING
-      log "[CRIT] (dataset ${dataset}) Remote server/NFS service at '${REMOTESYSTEM}' unreachable; confirming unmounted status of share '$REMOTESHARE'."
+      log "[CRIT] (dataset ${datasetno}) Remote server/NFS service at '${REMOTESYSTEM}' unreachable; confirming unmounted status of share '$REMOTESHARE'."
       
       nfs_umount "${LOCALMOUNTPOINT}"
       if ${_RET} ; then
-        log "[INFO] (dataset ${dataset}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
+        log "[INFO] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
       else
-        log "[CRIT] (dataset ${dataset}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!"
+        log "[CRIT] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!"
       fi
   
     fi
