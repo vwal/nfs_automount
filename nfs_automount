@@ -351,6 +351,8 @@ function nfs_remount {
 log "[NOTE] Monitoring started."
 
 while : ; do
+  
+  DATESTAMP=`date --rfc-3339=seconds`
 
   if ! ${DEBUGLOG} ; then
     log "[NOTE] Checking shares. Debug logging disabled." 
