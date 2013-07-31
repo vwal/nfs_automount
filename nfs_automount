@@ -353,7 +353,7 @@ log "[NOTE] Monitoring started."
 while : ; do
 
   if ! ${DEBUGLOG} ; then
-    log "[INFO] Checking shares. Debug logging disabled." 
+    log "[NOTE] Checking shares. Debug logging disabled." 
   fi
 
   mountscnt=${#MOUNTDATA[@]}
