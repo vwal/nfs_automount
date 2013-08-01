@@ -64,22 +64,26 @@ function log {
   DATESTAMP=`date --rfc-3339=seconds`
 
   if [ "${DEBUGLOG}" = "true" ] || [ "${critical}" = "true" ] ; then
-    message=`echo "nfs_automount [${DATESTAMP}]: ${log_msg}"`
+    message=`echo "duplicity-nfs-backup [${DATESTAMP}]: ${log_msg}"`
 
     if [ "${LOGTYPE}" = "log" ] && [ ! -z ${LOGFILEPATH} ]; then
+      _output_type=echo
       if [ ! -f ${LOGFILEPATH} ] ; then
-      	 ${touchcmd} ${LOGFILEPATH} > /dev/null 2>&1
+      	 touch ${LOGFILEPATH} > /dev/null 2>&1
          if [ -f ${LOGFILEPATH} ] ; then
-           echo ${message} >> ${LOGFILEPATH}
-         else
-           echo ${message}
+           _output_type=log
          fi
+      fi
+      if [ "${_output_type}" = 'log' ] ; then
+        echo ${message} >> ${LOGFILEPATH}
+      else
+        echo ${message}
       fi
     else
       echo ${message}
     fi
   fi
-  
+    
   if [ ${TAG} = "[CRIT]" ] ; then
     logger_msg=`echo "nfs_automount: ${log_msg}"`
     logger ${logger_msg}
