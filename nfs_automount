@@ -67,14 +67,16 @@ function log {
     message=`echo "duplicity-nfs-backup [${DATESTAMP}]: ${log_msg}"`
 
     if [ "${LOGTYPE}" = "log" ] && [ ! -z ${LOGFILEPATH} ]; then
-      _output_type=echo
-      if [ ! -f ${LOGFILEPATH} ] ; then
+      _output_type="echo"
+      if [ -f ${LOGFILEPATH} ] ; then
+        _output_type="log"
+      else
       	 touch ${LOGFILEPATH} > /dev/null 2>&1
          if [ -f ${LOGFILEPATH} ] ; then
-           _output_type=log
+           _output_type="log"
          fi
       fi
-      if [ "${_output_type}" = 'log' ] ; then
+      if [ "${_output_type}" = "log" ] ; then
         echo ${message} >> ${LOGFILEPATH}
       else
         echo ${message}
