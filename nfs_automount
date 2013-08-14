@@ -64,7 +64,7 @@ function log {
   DATESTAMP=`date --rfc-3339=seconds`
 
   if [ "${DEBUGLOG}" = "true" ] || [ "${critical}" = "true" ] ; then
-    message=`echo "duplicity-nfs-backup [${DATESTAMP}]: ${log_msg}"`
+    message=`echo "nfs_automount [${DATESTAMP}]: ${log_msg}"`
 
     if [ "${LOGTYPE}" = "log" ] && [ ! -z ${LOGFILEPATH} ]; then
       _output_type="echo"
