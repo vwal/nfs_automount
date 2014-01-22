@@ -78,6 +78,19 @@ Start the service with `start nfs_automount`.  Note that the log will be written
 
 Also note that whenever you modify the configuration file at /etc/nfs_automount.conf, you'll need to issue `service nfs_automount restart` in order for the changes to become effective.
 
+Running As Unprivileged User
+------------------------------------------
+
+By default, nfs_automount will run as root. However there might be circumstances which require to run nfs_automount as unprivileged user.
+
+For example when the security settings on the NFS shares prevent the root user to write to the share. In such instance, nfs_automount will declare the share as stale and thus will unmount and remount the share at the interval specified. A typcial use case would be a user share in a corporate environment where each user has its own share.
+
+To run nfs_automount as unprivileged user;
+
+    sudo su
+    nano /etc/init/nfs_automount.conf
+
+Make modifications according to the provided comments. 
 
 Version History
 ---------------
