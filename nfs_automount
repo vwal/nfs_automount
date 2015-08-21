@@ -221,7 +221,9 @@ function check_remoteshare {
     exit 1
   fi
 
-  remotesharecheck=`${showmountcmd} -e ${_remotesystem} | ${awkcmd} '{print $1}' | ${grepcmd} "${_remoteshare}"`
+  _remotesharebase="${_remoteshare#/}"
+  _remotesharebase="/${_remotesharebase%%/*}"
+  remotesharecheck=`${showmountcmd} -e ${_remotesystem} | ${awkcmd} '{print $1}' | ${grepcmd} "${_remotesharebase}"`
   if [ "${remotesharecheck}" != "" ] ; then
     _RET=true
   else
