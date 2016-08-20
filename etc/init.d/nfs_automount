@@ -45,7 +45,8 @@ case "$1" in
     if is_running; then
         echo -n "Stopping $name.."
         kill `get_pid`
-        for i in {1..10}
+        count=0
+        while [ $count -le 10 ]
         do
             if ! is_running; then
                 break
@@ -53,6 +54,7 @@ case "$1" in
 
             echo -n "."
             sleep 1
+            count=$((count+1))
         done
         echo
 
