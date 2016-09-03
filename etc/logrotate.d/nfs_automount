@@ -1,0 +1,11 @@
+/var/log/nfs_automount.log
+/var/log/nfs_automount.err
+{
+	rotate 7
+	daily
+	missingok
+	notifempty
+	delaycompress
+	compress
+	copytruncate
+}
