@@ -452,14 +452,18 @@ while : ; do
     else
       #UNREACHABLE SERVER/NFS SERVICE PROCESSING
       log "[CRIT] (dataset ${datasetno}) Remote server/NFS service at '${REMOTESYSTEM}' unreachable; confirming unmounted status of share '$REMOTESHARE'."
-      
-      nfs_umount "${LOCALMOUNTPOINT}"
-      if ${_RET} ; then
-        log "[INFO] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
+
+      if ! mount | grep -q "${LOCALMOUNTPOINT}.*type fuse.sshfs"; then
+        nfs_umount "${LOCALMOUNTPOINT}"
+        if ${_RET} ; then
+          log "[INFO] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' has been confirmed unmounted!"
+        else
+          log "[CRIT] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!"
+        fi
       else
-        log "[CRIT] (dataset ${datasetno}) Remote server '${REMOTESYSTEM}' or its NFS service is unreachable. Share '${REMOTESHARE}' could not be unmounted!"
+        log "[INFO] (dataset ${datasetno}) Share '${REMOTESHARE}' seems to be a SSHFS mount. It won't be unmounted."
       fi
-  
+
     fi
 
   done
