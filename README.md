@@ -1,7 +1,11 @@
 nfs_automount 
 =============
 
-Version 1.1 (2013-07-26)
+Version 1.1.1 (2022-02-14)
+
+Edits/changes for 1.1.1
+
+* Version 1.1 and below used an RPC check via the `showmount` command to check available remote host mountpoints, which works great with NFSv2 and NFSv3. This does *NOT* work with NFSv4 (see [this article](https://www.golinuxcloud.com/show-nfs-shares-list-nfs-client-mount-points/#Show_NFS_shares_on_NFS_Server)), so if an RPC error is detected, it now presumes that NFSv4 is being used and attempts the mount anyway if the server exists. If mounting does not occur (e.g. "backgrounding" due to a misconfiguration) it immediately unmounts the mountpoint instead of leaving it in the "backgrounded" state. No configuration changes are needed.
 
 The goal of this script is to provide static (i.e. /etc/fstab-like) NFS mounts, while at the same time supporting cross-mounts between servers.  
 
@@ -23,10 +27,9 @@ nfs_automount offers a solution:
 
 * Written in bash script with modular and clear syntax.  
 
-* Tested on Ubuntu 12.x (should also work on Debian) and CentOS 6.x (should also work on RedHat).  
+* Tested on Ubuntu 12.x (also tested on Debian Bullseye as a cronjob) and CentOS 6.x (should also work on RedHat).  
 
 * Distributed under MIT license.
-
 
 This complete rewrite of nfs_automount is based on older versions I wrote ([July 2010](http://my.galagzee.com/2010/07/23/mounting-nfs-share-after-boot-and-checking-up-on-it-periodically/), [May 2011](http://my.galagzee.com/2011/05/26/nfs-automount-linux-version/), and [December 2011](http://my.galagzee.com/2011/12/19/nfs-enforcer/)).  When I started making further changes to the script in July 2013 I was unhappy with the original script's deeply nested structure which made it problmatic to extend it as I wanted.  I also came across [AutoNFS](https://help.ubuntu.com/community/AutomaticallyMountNFSSharesWithoutAutofsHowto) script on Ubuntu's Community Wiki which gave me further ideas and inspiration. 
 
