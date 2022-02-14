@@ -4,6 +4,11 @@
 # Copyright (c) 2013 Ville Walveranta 
 # http://my.galagzee.com
 
+# Edited by Steven Saus (c) 2022
+# Noting that NFS4 does not use the RPC function, so that test always fails.
+# Added a small check that if RPC returns an error, it will attempt to mount
+# the configured NFS drive anyway.
+
 # Absolute path to the configuration file 
 # (if empty or not defined, the default is
 # 'nfs_automount.conf' in the script's directory)
@@ -71,7 +76,7 @@ function log {
       if [ -f ${LOGFILEPATH} ] ; then
         _output_type="log"
       else
-      	 touch ${LOGFILEPATH} > /dev/null 2>&1
+         touch ${LOGFILEPATH} > /dev/null 2>&1
          if [ -f ${LOGFILEPATH} ] ; then
            _output_type="log"
          fi
@@ -222,10 +227,17 @@ function check_remoteshare {
   fi
 
   remotesharecheck=`${showmountcmd} -e ${_remotesystem} | ${awkcmd} '{print $1}' | ${grepcmd} "${_remoteshare}"`
-  if [ "${remotesharecheck}" != "" ] ; then
-    _RET=true
-  else
-    _RET=false
+
+    if [ "${remotesharecheck}" != "" ] ; then
+        _RET=true
+    else
+        remotesharecheck=`${showmountcmd} -e ${_remotesystem} | ${awkcmd} '{print $1}' | ${grepcmd} "rpc" 2>&1`
+        if [ "${remotesharecheck}" != "" ] ; then
+            _RET=false
+        else
+            log "[INFO] RPC not enabled; assuming this is an NFS4 mount"
+            _RET=true
+        fi
   fi
 }
 
@@ -307,7 +319,7 @@ function nfs_mount {
     # Make sure the remote NFS share is available
     check_remoteshare ${_remotesystem} ${_remoteshare}
     if ${_RET} ; then
-
+    
       # Make sure the local mountpoint exists and is free
       valid_for_mount ${_localmountpoint}
       if ${_RET} ; then
@@ -369,7 +381,7 @@ while : ; do
 
     get_mount_dataset ${MOUNTDATA[$i]}
 
-	((datasetno=${i} + 1))
+    ((datasetno=${i} + 1))
 
     if [ ${#_RET[@]} -lt 5 ] ; then
       log "[CRIT] Incomplete mount dataset ${datasetno} in '${CONFIG}'. Skipping!"
